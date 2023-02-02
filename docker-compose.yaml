@@ -1,0 +1,19 @@
+version: '3.1'
+
+services:
+  db-budget:
+    image: postgres:12
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: 123
+      POSTGRES_USER: konst
+      POSTGRES_DB: budget
+    ports:
+      - 5432:5432
+    volumes:
+      - ./data:/var/lib/postgresql/data
+# docker-compose -f docker-compose.yaml up -d
+# docker-compose -f docker-compose.yaml down
+# docker-compose ps
+
+
