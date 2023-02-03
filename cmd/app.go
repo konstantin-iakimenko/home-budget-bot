@@ -5,7 +5,6 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/rs/zerolog/log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -16,6 +15,7 @@ const (
 	ErrorHandlingLink = "Не удалось обработать ссылку"
 	ErrorSavingBill   = "Не удалось сохранить чек"
 	ErrorParseBill    = "Не удалось разобрать счет"
+	ErrorGetCurrency  = "Не удалось получить курсы валют"
 	Done              = "Готово"
 )
 
@@ -48,7 +48,14 @@ func (a *app) Serve(ctx context.Context) {
 					a.sendMessage(bot, update.Message.Chat.ID, ErrorHandlingLink)
 					continue
 				}
-				err = a.Repository.SaveBill(ctx, update.Message.From, bill)
+				c, err := GetCurrencies(bill.BoughtAt)
+				if err != nil {
+					log.Error().Err(err).Msg("error getting currencies")
+					a.storeMessage(update.Message.Text)
+					a.sendMessage(bot, update.Message.Chat.ID, ErrorGetCurrency)
+					continue
+				}
+				err = a.Repository.SaveBill(ctx, update.Message.From, bill, &c.Rsd, &c.Usd)
 				if err != nil {
 					log.Error().Err(err).Msg("error saving bill")
 					a.storeMessage(update.Message.Text)
@@ -59,7 +66,14 @@ func (a *app) Serve(ctx context.Context) {
 				a.sendMessage(bot, update.Message.Chat.ID, Done)
 			} else {
 				splitted := strings.Split(update.Message.Text, " ")
-				totalAmount, err := strconv.ParseInt(splitted[0], 10, 64)
+				c, err := GetCurrencies(time.Unix(int64(update.Message.Date), 0))
+				if err != nil {
+					log.Error().Err(err).Msg("error getting currencies")
+					a.storeMessage(update.Message.Text)
+					a.sendMessage(bot, update.Message.Chat.ID, ErrorGetCurrency)
+					continue
+				}
+				totalAmount, currency, err := c.parseAmount(splitted[0])
 				if err != nil {
 					log.Error().Err(err).Msg("error parsing string bill")
 					a.sendMessage(bot, update.Message.Chat.ID, ErrorParseBill)
@@ -67,11 +81,12 @@ func (a *app) Serve(ctx context.Context) {
 				}
 				bill := &Bill{
 					TotalAmount: totalAmount * 100,
-					BoughtAt:    time.Now(),
+					BoughtAt:    time.Unix(int64(update.Message.Date), 0),
 					Description: splitted[1],
 					Category:    parseCategory(splitted[1]),
 				}
-				err = a.Repository.SaveBill(ctx, update.Message.From, bill)
+
+				err = a.Repository.SaveBill(ctx, update.Message.From, bill, currency, &c.Usd)
 				if err != nil {
 					log.Error().Err(err).Msg("error saving bill")
 					a.storeMessage(update.Message.Text)
