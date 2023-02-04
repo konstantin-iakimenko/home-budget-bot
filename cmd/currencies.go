@@ -16,10 +16,6 @@ import (
 	"time"
 )
 
-const (
-	CurrenciesInsert = "INSERT INTO currencies (id, code, title) VALUES ($1, $2, $3)"
-)
-
 type ValCurs struct {
 	xml.Name `xml:"ValCurs"`
 	Valute   []Valute `xml:"Valute"`
@@ -266,71 +262,3 @@ func (v *Valute) getExRate() (*big.Float, error) {
 		return new(big.Float).Quo(big.NewFloat(value), big.NewFloat(float64(nominal))), nil
 	}
 }
-
-//func uploadCurrencies() {
-//	valCurs, err := getValCurs(time.Now())
-//	if err != nil {
-//		log.Fatal().Err(err).Msgf("failed to get currencies: %w", err)
-//	}
-//	saveCurrencies(valCurs)
-//}
-
-//func getValCurs(date time.Time) (*ValCurs, error) {
-//	url := fmt.Sprintf("http://www.cbr.ru/scripts/XML_daily.asp?date_req=%s", date.Format("02/01/2006"))
-//
-//	resp, err := http.Get(url)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer func() { _ = resp.Body.Close() }()
-//	if resp.StatusCode != http.StatusOK {
-//		return nil, err
-//	}
-//
-//	data, err := ioutil.ReadAll(resp.Body)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	d := xml.NewDecoder(bytes.NewReader(data))
-//	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
-//		switch charset {
-//		case "windows-1251":
-//			return charmap.Windows1251.NewDecoder().Reader(input), nil
-//		default:
-//			return nil, fmt.Errorf("unknown charset: %s", charset)
-//		}
-//	}
-//	var result ValCurs
-//	err = d.Decode(&result)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return &result, nil
-//}
-//
-//func saveCurrencies(valCurs *ValCurs) {
-//	ctx := context.Background()
-//	config, err := pgxpool.ParseConfig(os.Getenv("PG_HOMEBUDGET_DB")) // DatabaseURL
-//	if err != nil {
-//		log.Fatal().Err(err).Msgf("failed to parse conn string (%s): %w", os.Getenv("PG_HOMEBUDGET_DB"), err)
-//	}
-//	pool, err := pgxpool.ConnectConfig(ctx, config)
-//	if err != nil {
-//		log.Fatal().Err(err).Msgf("unable to connect to database: %w", err)
-//	}
-//	defer pool.Close()
-//
-//	for _, valute := range valCurs.Valute {
-//		log.Info().Msgf("valute: %s", valute)
-//		code, err := strconv.ParseInt(valute.NumCode, 10, 64)
-//		if err != nil {
-//			log.Fatal().Err(err).Msgf("unable to parse num code: %w", err)
-//		}
-//		_, err = pool.Exec(ctx, CurrenciesInsert, code, valute.CharCode, valute.Name)
-//		if err != nil {
-//			log.Fatal().Err(err).Msgf("unable to insert currency: %w", err)
-//		}
-//	}
-//	// insert into currencies(id, code, title, format) values (643, 'RUB', 'Российский рубль', '%s руб.');
-//}
