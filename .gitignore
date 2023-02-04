@@ -1,2 +1,4 @@
 .idea
 data
+cmd/cur
+cmd/waste.csv

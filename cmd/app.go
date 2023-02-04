@@ -15,7 +15,6 @@ const (
 	ErrorHandlingLink = "Не удалось обработать ссылку"
 	ErrorSavingBill   = "Не удалось сохранить чек"
 	ErrorParseBill    = "Не удалось разобрать счет"
-	ErrorGetCurrency  = "Не удалось получить курсы валют"
 	Done              = "Готово"
 )
 
@@ -36,6 +35,8 @@ func (a *app) Serve(ctx context.Context) {
 
 	updates := bot.GetUpdatesChan(u)
 
+	curCash := InitCurCash()
+
 	for update := range updates {
 		if update.Message != nil {
 			log.Info().Msgf("[%s] %s", update.Message.From.UserName, update.Message.Text)
@@ -45,38 +46,24 @@ func (a *app) Serve(ctx context.Context) {
 				if err != nil {
 					log.Error().Err(err).Msg("error handling link")
 					a.storeMessage(update.Message.Text)
-					a.sendMessage(bot, update.Message.Chat.ID, ErrorHandlingLink)
+					a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, ErrorHandlingLink)
 					continue
 				}
-				c, err := GetCurrencies(bill.BoughtAt)
-				if err != nil {
-					log.Error().Err(err).Msg("error getting currencies")
-					a.storeMessage(update.Message.Text)
-					a.sendMessage(bot, update.Message.Chat.ID, ErrorGetCurrency)
-					continue
-				}
-				err = a.Repository.SaveBill(ctx, update.Message.From, bill, &c.Rsd, &c.Usd)
+				err = a.Repository.SaveBill(ctx, update.Message.From, bill, curCash.Get(bill.BoughtAt, "RSD"), curCash.Get(bill.BoughtAt, "USD"))
 				if err != nil {
 					log.Error().Err(err).Msg("error saving bill")
 					a.storeMessage(update.Message.Text)
-					a.sendMessage(bot, update.Message.Chat.ID, ErrorSavingBill)
+					a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, ErrorSavingBill)
 					continue
 				}
 				log.Info().Msg("bill saved")
-				a.sendMessage(bot, update.Message.Chat.ID, Done)
+				a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, Done)
 			} else {
 				splitted := strings.Split(update.Message.Text, " ")
-				c, err := GetCurrencies(time.Unix(int64(update.Message.Date), 0))
-				if err != nil {
-					log.Error().Err(err).Msg("error getting currencies")
-					a.storeMessage(update.Message.Text)
-					a.sendMessage(bot, update.Message.Chat.ID, ErrorGetCurrency)
-					continue
-				}
-				totalAmount, currency, err := c.parseAmount(splitted[0])
+				totalAmount, currency, err := parseAmount(splitted[0], curCash, time.Unix(int64(update.Message.Date), 0))
 				if err != nil {
 					log.Error().Err(err).Msg("error parsing string bill")
-					a.sendMessage(bot, update.Message.Chat.ID, ErrorParseBill)
+					a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, ErrorParseBill)
 					continue
 				}
 				bill := &Bill{
@@ -86,15 +73,15 @@ func (a *app) Serve(ctx context.Context) {
 					Category:    parseCategory(splitted[1]),
 				}
 
-				err = a.Repository.SaveBill(ctx, update.Message.From, bill, currency, &c.Usd)
+				err = a.Repository.SaveBill(ctx, update.Message.From, bill, currency, curCash.Get(bill.BoughtAt, "USD"))
 				if err != nil {
 					log.Error().Err(err).Msg("error saving bill")
 					a.storeMessage(update.Message.Text)
-					a.sendMessage(bot, update.Message.Chat.ID, ErrorSavingBill)
+					a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, ErrorSavingBill)
 					continue
 				}
 				log.Info().Msg("string bill saved")
-				a.sendMessage(bot, update.Message.Chat.ID, Done)
+				a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, Done)
 			}
 		}
 	}
@@ -125,9 +112,10 @@ func parseCategory(description string) string {
 	}
 }
 
-func (a *app) sendMessage(bot *tgbotapi.BotAPI, chatID int64, text string) {
+func (a *app) sendMessage(bot *tgbotapi.BotAPI, chatID int64, messageId int, text string) {
 	msg := tgbotapi.NewMessage(chatID, text)
 	_, err := bot.Send(msg)
+	msg.ReplyToMessageID = messageId
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("error sending message")
 	}
