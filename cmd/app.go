@@ -12,10 +12,11 @@ import (
 const SufPursGovRs = "https://suf.purs.gov.rs/"
 
 const (
-	ErrorHandlingLink = "Не удалось обработать ссылку"
-	ErrorSavingBill   = "Не удалось сохранить чек"
-	ErrorParseBill    = "Не удалось разобрать счет"
-	Done              = "Готово"
+	ErrorHandlingLink    = "Не удалось обработать ссылку"
+	ErrorSavingBill      = "Не удалось сохранить чек"
+	ErrorParseBill       = "Не удалось разобрать счет"
+	ErrorGettingCategory = "Не удалось получить категорию"
+	Done                 = "Готово"
 )
 
 type app struct {
@@ -66,11 +67,19 @@ func (a *app) Serve(ctx context.Context) {
 					a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, ErrorParseBill)
 					continue
 				}
+
+				category, err := a.Repository.GetCategoryByDescription(ctx, splitted[1])
+				if err != nil {
+					log.Error().Err(err).Msg("error getting category")
+					a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, ErrorGettingCategory)
+					continue
+				}
+
 				bill := &Bill{
 					TotalAmount: totalAmount * 100,
 					BoughtAt:    time.Unix(int64(update.Message.Date), 0),
 					Description: splitted[1],
-					Category:    parseCategory(splitted[1]),
+					Category:    category,
 				}
 
 				err = a.Repository.SaveBill(ctx, update.Message.From, bill, currency, curCash.Get(bill.BoughtAt, "USD"))
@@ -84,58 +93,6 @@ func (a *app) Serve(ctx context.Context) {
 				a.sendMessage(bot, update.Message.Chat.ID, update.Message.MessageID, Done)
 			}
 		}
-	}
-}
-
-func parseCategory(description string) string {
-	description = strings.ToLower(description)
-	switch description {
-	case "автобус", "поезд", "buscart", "проездной", "такси", "штраф":
-		return "Транспорт"
-	case "парикмахерская":
-		return "Красота"
-	case "gym":
-		return "Спорт"
-	case "подшив", "футболка", "футболки", "джинсы", "одежда", "кроссовки", "ботинки", "туфли", "decathlon", "кеды", "рюкзак", "флиска":
-		return "Одежда"
-	case "подарок", "подарки", "сувениры":
-		return "Подарки"
-	case "кафе", "mac", "kfc", "ресторан", "обед", "пицерия", "ужин", "ход-дог", "чай", "шаурма", "швепс", "энергетик":
-		return "Рестораны"
-	case "sbb", "связь", "телефон", "интернет", "yettel", "мтс":
-		return "Связь"
-	case "вода", "лимонад", "сок", "кола", "maxi", "булочная", "пекарня", "рынок", "супермаркет", "тортик", "шоколадка":
-		return "Продукты"
-	case "панда", "элефант", "ikea", "кастрюля", "коврики", "скотч", "стол", "стул", "чайник", "чашка", "ножи", "ручка":
-		return "Дом и ремонт"
-	case "boosty", "protonmail", "youtube", "netflix", "стс":
-		return "Сервисы"
-	case "italki", "slerm", "английский", "книга", "обучение":
-		return "Образование"
-	case "концерт", "кино", "разное", "канцтовары":
-		return "Развлечения"
-	case "zoovolonter", "благотворительность", "донаты":
-		return "Благотворительность"
-	case "автомойка", "автомобиль", "стеклоомыватель", "шиномонтаж":
-		return "Автомобиль"
-	case "аренда", "коммуналка":
-		return "Коммуналка"
-	case "музей", "музеи":
-		return "Музеи"
-	case "автоаренда", "визаран", "спа-отель", "отель":
-		return "Туризм"
-	case "виртуальныйоофис", "бизнес":
-		return "Бизнес"
-	case "документы", "фотографии":
-		return "Документы"
-	case "массаж", "стоматология", "поликлиника", "пластырь", "аптеки":
-		return "Лечение"
-	case "нотариус":
-		return "Нотариус"
-	case "осаго", "страхование":
-		return "Страхование"
-	default:
-		return "-"
 	}
 }
 

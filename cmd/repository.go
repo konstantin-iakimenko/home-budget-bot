@@ -13,6 +13,7 @@ const (
 	UserInsert     = "INSERT INTO users(user_name, first_name, last_name, lang) VALUES ($1, $2, $3, $4) RETURNING id"
 	BillInsert     = "INSERT INTO bills(user_id, bought_at, description, category, amount, currency, amount_rub, amount_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id"
 	BillItemInsert = "INSERT INTO bill_items(bill_id, title, price, cnt, amount, currency, amount_rub, amount_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+	CategorySelect = "SELECT category FROM desc_categories WHERE description = $1"
 )
 
 type Repository struct {
@@ -21,6 +22,24 @@ type Repository struct {
 
 func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
+}
+
+func (r *Repository) GetCategoryByDescription(ctx context.Context, description string) (string, error) {
+	var category string
+	desc, err := r.pool.Query(ctx, CategorySelect, description)
+	defer desc.Close()
+	if err != nil {
+		return "", err
+	}
+	if desc.Next() {
+		err = desc.Scan(&category)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		category = "-"
+	}
+	return category, nil
 }
 
 func (r *Repository) SaveBill(ctx context.Context, user *tgbotapi.User, bill *Bill, currency *Currency, usd *Currency) error {
@@ -46,7 +65,6 @@ func (r *Repository) SaveBill(ctx context.Context, user *tgbotapi.User, bill *Bi
 			_ = tx.Rollback(ctx)
 			return err
 		}
-		users.Close()
 	} else {
 		err := tx.QueryRow(ctx, UserInsert, user.UserName, user.FirstName, user.LastName, user.LanguageCode).Scan(&userId)
 		if err != nil {
@@ -54,6 +72,7 @@ func (r *Repository) SaveBill(ctx context.Context, user *tgbotapi.User, bill *Bi
 			return err
 		}
 	}
+	users.Close()
 
 	rubAmount := convertToRub(bill.TotalAmount, currency)
 	usdAmount := convertToUsd(bill.TotalAmount, currency, usd)
