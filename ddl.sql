@@ -79,3 +79,11 @@ COMMENT ON COLUMN bill_items.amount IS 'сумма';
 COMMENT ON COLUMN bill_items.currency IS 'валюта';
 COMMENT ON COLUMN bill_items.amount_rub IS 'сумма в рублях';
 COMMENT ON COLUMN bill_items.amount_usd IS 'сумма в долларах';
+
+insert into currencies(id, code, title, format) values (643, 'RUB', 'Российский рубль', '%s ₽');
+update currencies set format = '%s ₽' where code = 'RUB';
+update currencies set format = '%s €' where code = 'EUR';
+update currencies set format = '$%s' where code = 'USD';
+update currencies set format = '%s ₺' where code = 'TRY';
+update currencies set format = '%s £' where code = 'GBP';
+update currencies set format = '%s ֏' where code = 'AMD';

@@ -15,5 +15,6 @@ services:
 # docker-compose -f docker-compose.yaml up -d
 # docker-compose -f docker-compose.yaml down
 # docker-compose ps
+# pg_dump --host 127.0.0.1 --port 5432 --user konst budget > budget_20230204.sql
 
 
