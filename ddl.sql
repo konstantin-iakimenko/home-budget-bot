@@ -49,7 +49,7 @@ CREATE TABLE bill_items (
 );
 
 CREATE TABLE desc_categories (
-  description varchar(255) not null PRIMARY KEY ,
+  description varchar(255) not null PRIMARY KEY,
   category varchar(255) not null
 );
 
@@ -89,13 +89,52 @@ COMMENT ON TABLE desc_categories IS 'описание категорий';
 COMMENT ON COLUMN desc_categories.description IS 'описание';
 COMMENT ON COLUMN desc_categories.category IS 'категория';
 
-insert into currencies(id, code, title, format) values (643, 'RUB', 'Российский рубль', '%s ₽');
-update currencies set format = '%s ₽' where code = 'RUB';
-update currencies set format = '%s €' where code = 'EUR';
-update currencies set format = '$%s' where code = 'USD';
-update currencies set format = '%s ₺' where code = 'TRY';
-update currencies set format = '%s £' where code = 'GBP';
-update currencies set format = '%s ֏' where code = 'AMD';
+insert into currencies(id, code, title, format)
+values (36, 'AUD', 'Австралийский доллар', '%s'),
+       (51, 'AMD', 'Армянских драмов', '%s ֏'),
+       (124, 'CAD', 'Канадский доллар', '%s'),
+       (156, 'CNY', 'Китайский юань', '%s'),
+       (203, 'CZK', 'Чешских крон', '%s'),
+       (208, 'DKK', 'Датская крона', '%s'),
+       (344, 'HKD', 'Гонконгских долларов', '%s'),
+       (348, 'HUF', 'Венгерских форинтов', '%s'),
+       (356, 'INR', 'Индийских рупий', '%s'),
+       (360, 'IDR', 'Индонезийских рупий', '%s'),
+       (392, 'JPY', 'Японских иен', '%s'),
+       (398, 'KZT', 'Казахстанских тенге', '%s'),
+       (410, 'KRW', 'Вон Республики Корея', '%s'),
+       (417, 'KGS', 'Киргизских сомов', '%s'),
+       (498, 'MDL', 'Молдавских леев', '%s'),
+       (554, 'NZD', 'Новозеландский доллар', '%s'),
+       (578, 'NOK', 'Норвежских крон', '%s'),
+       (634, 'QAR', 'Катарский риал', '%s'),
+       (643, 'RUB', 'Российский рубль', '%s ₽'),
+       (702, 'SGD', 'Сингапурский доллар', '%s'),
+       (704, 'VND', 'Вьетнамских донгов', '%s'),
+       (710, 'ZAR', 'Южноафриканских рэндов', '%s'),
+       (752, 'SEK', 'Шведских крон', '%s'),
+       (756, 'CHF', 'Швейцарский франк', '%s'),
+       (764, 'THB', 'Таиландских батов', '%s'),
+       (784, 'AED', 'Дирхам ОАЭ', '%s'),
+       (818, 'EGP', 'Египетских фунтов', '%s'),
+       (826, 'GBP', 'Фунт стерлингов Соединенного королевства', '%s £'),
+       (840, 'USD', 'Доллар США', '$%s'),
+       (860, 'UZS', 'Узбекских сумов', '%s'),
+       (933, 'BYN', 'Белорусский рубль', '%s'),
+       (934, 'TMT', 'Новый туркменский манат', '%s'),
+       (941, 'RSD', 'Сербских динаров', '%s'),
+       (944, 'AZN', 'Азербайджанский манат', '%s'),
+       (946, 'RON', 'Румынский лей', '%s'),
+       (949, 'TRY', 'Турецких лир', '%s ₺'),
+       (960, 'XDR', 'СДР (специальные права заимствования)', '%s'),
+       (972, 'TJS', 'Таджикских сомони', '%s'),
+       (975, 'BGN', 'Болгарский лев', '%s'),
+       (978, 'EUR', 'Евро', '%s €'),
+       (980, 'UAH', 'Украинских гривен', '%s'),
+       (981, 'GEL', 'Грузинский лари', '%s'),
+       (985, 'PLN', 'Польский злотый', '%s'),
+       (986, 'BRL', 'Бразильский реал', '%s')
+;
 
 insert into desc_categories(description, category)
 values ('автобус', 'Транспорт'),
