@@ -1,5 +1,5 @@
 .idea
 data
-cmd/cur
+cmd/filecache
 cmd/waste.csv
 backup

@@ -55,14 +55,14 @@ func InitCurCash() *CurCash {
 	return &CurCash{m: curMap}
 }
 
-func (c *CurCash) Get(date time.Time, code string) *Currency {
+func (c *CurCash) Get(date time.Time, code string) (*Currency, error) {
 	if code == "RUB" {
 		return &Currency{
 			NumCode: 643,
 			Code:    "RUB",
 			ExRate:  big.NewFloat(1),
 			Symbol:  "₽",
-		}
+		}, nil
 	}
 
 	dateName := date.Format("2006-01-02")
@@ -72,39 +72,37 @@ func (c *CurCash) Get(date time.Time, code string) *Currency {
 		currency := c.m[dateName][code]
 		result = &currency
 	} else {
-		if _, err := os.Stat(fmt.Sprintf("cmd/cur/%s.xml", dateName)); err != nil && os.IsNotExist(err) {
-			createCurFile(date)
+		if _, err := os.Stat(fmt.Sprintf("cmd/filecache/%s.xml", dateName)); err != nil && os.IsNotExist(err) {
+			err = createCurFile(date)
+			if err != nil {
+				return nil, err
+			}
 		}
-		valCurs, err := readFile(fmt.Sprintf("cmd/cur/%s.xml", dateName))
+		valCurs, err := readFile(fmt.Sprintf("cmd/filecache/%s.xml", dateName))
 		if err != nil {
-			log.Fatal().Stack().Err(err).Msg("error reading currencies")
+			return nil, err
 		}
-		valueMap := parseValCurs(valCurs)
+		valueMap, err := parseValCurs(valCurs)
+		if err != nil {
+			return nil, err
+		}
 		c.m[dateName] = valueMap
 		res := valueMap[code]
 		result = &res
 	}
-	if result.NumCode == 0 && code == "RSD" {
-		result = &Currency{
-			NumCode: 941,
-			Code:    "RSD",
-			ExRate:  big.NewFloat(0.645),
-			Symbol:  "din",
-		}
-	}
-	return result
+	return result, nil
 }
 
-func parseValCurs(valCurs *ValCurs) map[string]Currency {
+func parseValCurs(valCurs *ValCurs) (map[string]Currency, error) {
 	valueMap := make(map[string]Currency)
 	for _, valute := range valCurs.Valute {
 		exRate, err := valute.getExRate()
 		if err != nil {
-			log.Fatal().Stack().Err(err).Msg("error getting ex rate")
+			return nil, err
 		}
 		numCode, err := strconv.ParseInt(valute.NumCode, 10, 64)
 		if err != nil {
-			log.Fatal().Stack().Err(err).Msg("error parsing num code")
+			return nil, err
 		}
 		currency := Currency{
 			NumCode: numCode,
@@ -114,7 +112,7 @@ func parseValCurs(valCurs *ValCurs) map[string]Currency {
 		}
 		valueMap[valute.CharCode] = currency
 	}
-	return valueMap
+	return valueMap, nil
 }
 
 func getSymbol(code string) string {
@@ -140,34 +138,47 @@ func parseAmount(amount string, cash *CurCash, date time.Time) (int64, *Currency
 	amount = strings.ToLower(amount)
 	amount = strings.TrimSpace(amount)
 	if strings.HasSuffix(amount, getSymbol("EUR")) {
-		return cash.Get(date, "EUR").getAmount(amount)
+		return getAmount("EUR", amount, cash, date)
 	} else if strings.HasSuffix(amount, getSymbol("USD")) {
-		return cash.Get(date, "USD").getAmount(amount)
+		return getAmount("USD", amount, cash, date)
 	} else if strings.HasSuffix(amount, getSymbol("TRY")) {
-		return cash.Get(date, "TRY").getAmount(amount)
+		return getAmount("TRY", amount, cash, date)
 	} else if strings.HasSuffix(amount, getSymbol("GBP")) {
-		return cash.Get(date, "GBP").getAmount(amount)
+		return getAmount("GBP", amount, cash, date)
 	} else if strings.HasSuffix(amount, getSymbol("RUB")) {
-		return cash.Get(date, "RUB").getAmount(amount)
+		return getAmount("RUB", amount, cash, date)
 	} else {
 		value, err := strconv.ParseInt(amount, 10, 64)
 		if err != nil {
 			return 0, nil, err
 		}
-		return value, cash.Get(date, "RSD"), nil
+		currency, err := cash.Get(date, "RSD")
+		if err != nil {
+			return 0, nil, err
+		}
+		return value, currency, nil
 	}
 }
 
-func createCurFile(date time.Time) {
+func getAmount(code string, amount string, cash *CurCash, date time.Time) (int64, *Currency, error) {
+	currency, err := cash.Get(date, code)
+	if err != nil {
+		return 0, nil, err
+	}
+	return currency.getAmount(amount)
+}
+
+func createCurFile(date time.Time) error {
 	valCurs, err := getAllValCurs(date)
 	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("error getting currencies")
+		return err
 	}
 	data, err := xml.Marshal(valCurs)
 	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("error marshalling currencies")
+		return err
 	}
-	saveFile(string(data), date)
+	err = saveFile(string(data), date)
+	return err
 }
 
 func readFile(fileName string) (*ValCurs, error) {
@@ -190,23 +201,25 @@ func readFile(fileName string) (*ValCurs, error) {
 	return &valCurs, nil
 }
 
-func saveFile(message string, date time.Time) {
-	fileName := fmt.Sprintf("cmd/cur/%v.xml", date.Format("2006-01-02"))
+func saveFile(message string, date time.Time) error {
+	fileName := fmt.Sprintf("cmd/filecache/%v.xml", date.Format("2006-01-02"))
 
 	_, err := os.Create(fileName)
 	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("error creating file")
+		return err
 	}
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("error saving message on disc")
-		return
+		return err
 	}
 	defer func() { _ = f.Close() }()
 
 	if _, err = f.WriteString(message + "\n"); err != nil {
 		log.Error().Stack().Err(err).Msg("error saving message on disc")
+		return err
 	}
+	return nil
 }
 
 func getAllValCurs(date time.Time) (*ValCurs, error) {
