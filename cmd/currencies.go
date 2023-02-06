@@ -16,27 +16,6 @@ import (
 	"time"
 )
 
-type ValCurs struct {
-	xml.Name `xml:"ValCurs"`
-	Valute   []Valute `xml:"Valute"`
-}
-
-type Valute struct {
-	ID       string `xml:"ID,attr"`
-	NumCode  string `xml:"NumCode"`
-	CharCode string `xml:"CharCode"`
-	Nominal  string `xml:"Nominal"`
-	Name     string `xml:"Name"`
-	Value    string `xml:"Value"`
-}
-
-type Currency struct {
-	NumCode int64
-	Code    string
-	ExRate  *big.Float
-	Symbol  string
-}
-
 func (c *Currency) getAmount(amount string) (int64, *Currency, error) {
 	amount = strings.TrimSuffix(amount, c.Symbol)
 	value, err := strconv.ParseInt(amount, 10, 64)
@@ -44,10 +23,6 @@ func (c *Currency) getAmount(amount string) (int64, *Currency, error) {
 		return 0, nil, err
 	}
 	return value, c, nil
-}
-
-type CurCash struct {
-	m map[string](map[string]Currency)
 }
 
 func InitCurCash() *CurCash {
