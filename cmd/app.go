@@ -112,8 +112,8 @@ func (a *app) sendErrMessage(err error, errMsg string, bot *tgbotapi.BotAPI, upd
 
 func (a *app) sendMessage(bot *tgbotapi.BotAPI, chatID int64, messageId int, text string) {
 	msg := tgbotapi.NewMessage(chatID, text)
-	_, err := bot.Send(msg)
 	msg.ReplyToMessageID = messageId
+	_, err := bot.Send(msg)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("error sending message")
 	}
