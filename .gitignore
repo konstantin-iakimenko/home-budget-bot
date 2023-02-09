@@ -3,3 +3,4 @@ data
 cmd/filecache
 cmd/waste.csv
 backup
+commands
