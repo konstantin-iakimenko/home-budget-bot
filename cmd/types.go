@@ -35,6 +35,24 @@ type Valute struct {
 	Value    string `xml:"Value"`
 }
 
+type Response struct {
+	Meta Meta `json:"meta"`
+	Data Data `json:"data"`
+}
+
+type Data struct {
+	Rub Rub `json:"RUB"`
+}
+
+type Rub struct {
+	Code  string  `json:"code"`
+	Value float64 `json:"value"`
+}
+
+type Meta struct {
+	LastUpdatedAt string `json:"last_updated_at"`
+}
+
 type Currency struct {
 	NumCode int64
 	Code    string

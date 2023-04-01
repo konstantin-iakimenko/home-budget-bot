@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/text/encoding/charmap"
-	"io"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -197,38 +195,91 @@ func saveFile(message string, date time.Time) error {
 	return nil
 }
 
+func getDateParam(date time.Time) string {
+	dateParam := date.Format("2006-01-02")
+	nowDate := time.Now().Format("2006-01-02")
+	if dateParam != nowDate {
+		return "&date=" + dateParam
+	}
+	return ""
+}
+
 func getAllValCurs(date time.Time) (*ValCurs, error) {
-	url := fmt.Sprintf("http://www.cbr.ru/scripts/XML_daily.asp?date_req=%s", date.Format("02/01/2006"))
+	dateParam := getDateParam(date)
 
-	resp, err := http.Get(url)
+	eurValue, err := callCurrencyapi("EUR", dateParam)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, err
+	eur := Valute{
+		ID:       "R01239",
+		NumCode:  "978",
+		CharCode: "EUR",
+		Nominal:  "1",
+		Name:     "Евро",
+		Value:    fmt.Sprintf("%f", eurValue),
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	usdValue, err := callCurrencyapi("USD", dateParam)
 	if err != nil {
 		return nil, err
 	}
-
-	d := xml.NewDecoder(bytes.NewReader(data))
-	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
-		switch charset {
-		case "windows-1251":
-			return charmap.Windows1251.NewDecoder().Reader(input), nil
-		default:
-			return nil, fmt.Errorf("unknown charset: %s", charset)
-		}
+	usd := Valute{
+		ID:       "R01235",
+		NumCode:  "840",
+		CharCode: "USD",
+		Nominal:  "1",
+		Name:     "Доллар США",
+		Value:    fmt.Sprintf("%f", usdValue),
 	}
-	var result ValCurs
-	err = d.Decode(&result)
+
+	rsdValue, err := callCurrencyapi("RSD", dateParam)
 	if err != nil {
 		return nil, err
 	}
-	return &result, nil
+	rsd := Valute{
+		ID:       "R01805F",
+		NumCode:  "941",
+		CharCode: "RSD",
+		Nominal:  "100",
+		Name:     "Сербских динаров",
+		Value:    fmt.Sprintf("%f", rsdValue*100),
+	}
+
+	tryValue, err := callCurrencyapi("TRY", dateParam)
+	if err != nil {
+		return nil, err
+	}
+	try := Valute{
+		ID:       "R01700J",
+		NumCode:  "949",
+		CharCode: "TRY",
+		Nominal:  "10",
+		Name:     "Турецких лир",
+		Value:    fmt.Sprintf("%f", tryValue*10),
+	}
+
+	valCurs := ValCurs{
+		Valute: []Valute{eur, usd, rsd, try},
+	}
+	return &valCurs, nil
+}
+
+func callCurrencyapi(code string, dateParam string) (float64, error) {
+	response, err := http.Get("https://api.currencyapi.com/v3/latest?apikey=" + os.Getenv("CURRENCYAPI_TOKEN") + "&currencies=RUB&base_currency=" + code + dateParam)
+	if err != nil {
+		return 0, err
+	}
+	responseData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return 0, err
+	}
+	var responseObject Response
+	err = json.Unmarshal(responseData, &responseObject)
+	if err != nil {
+		return 0, err
+	}
+	return responseObject.Data.Rub.Value, nil
 }
 
 func (v *Valute) getExRate() (*big.Float, error) {
