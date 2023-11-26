@@ -125,7 +125,7 @@ func parseAmount(amount string, cash *CurCash, date time.Time) (int64, *Currency
 		if err != nil {
 			return 0, nil, err
 		}
-		currency, err := cash.Get(date, "RSD")
+		currency, err := cash.Get(date, "RUB")
 		if err != nil {
 			return 0, nil, err
 		}
